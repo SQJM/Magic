@@ -75,7 +75,7 @@ const magic = ( () => {
 			id : mid,
 			element : e,
 			data : mData,
-			name : e.getAttribute( "m-name" )
+			name : e.getAttribute( "m-name" ),
 
 			event : {
 				destruct : () => {
