@@ -69,8 +69,10 @@ const magic = ( () => {
 			if ( monitor_event[ eventName ] ) monitor_event[ eventName ]();
 		}
 
+		const m_interface = {};
+
 		const m = {
-			interface : {},
+			useInterface : _ => m_interface[ _ ],
 			id : mid,
 			element : e,
 			data : mData,
