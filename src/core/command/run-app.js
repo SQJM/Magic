@@ -1,5 +1,5 @@
 import { MagicConfigParser } from "../util/magic-config-parser.js";
-import { __magic_app } from "../../magic-app.mjs";
+import { __magic_app } from "../../magic-app.js";
 import { runTask } from "../util/task.js";
 import { platform } from "../global/platform.js";
 import { outError } from "../util/error.js";
@@ -10,7 +10,7 @@ import { printf } from "../global/printf.js";
 
 const app = {
 	"node-webkit" : ( platform_config ) => {
-		const build_dir = `${ __magic_app.project.dir }/${ platform_config[ "build" ] }`;
+		const build_dir = `${ __magic_app.project.dir }/${ platform_config[ "build-dir" ] }`;
 
 		fs.copyFileSync( __magic_app.runDir + "/core/runtime/platform/node-webkit.js", `${ build_dir }/magic/init.js` );
 
@@ -72,7 +72,7 @@ export const runApp = () => {
 		} );
 
 		runTask( "command init", () => {
-			platform_config[ "build" ] = build_config[ "dir" ];
+			platform_config[ "build-dir" ] = build_config[ "build-dir" ];
 			platform_config[ "main" ] = `${ build_config[ "main" ] }/index.html`;
 			app[ platform_config[ "name" ] ]( platform_config );
 		} );

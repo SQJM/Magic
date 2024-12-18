@@ -1,6 +1,6 @@
 import { runTask } from "../util/task.js";
 import fs from "fs";
-import { __magic_app } from "../../magic-app.mjs";
+import { __magic_app } from "../../magic-app.js";
 import { Directory } from "../util/directory.js";
 import { UUID } from "../util/uuid.js";
 import { DatePro } from "../util/date-pro.js";

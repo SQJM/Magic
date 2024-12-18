@@ -56,6 +56,7 @@ const magic = ( () => {
 	function parserM( mid ) {
 		const e = document.querySelector( `[m-id="${ mid }"]` );
 		e.setAttribute( "magic-type", "m" );
+		const mName = e.getAttribute( "m-name" );
 
 		let mData = null;
 		const data = e.getElementsByTagName( "m-data" ).item( 0 );
@@ -75,7 +76,7 @@ const magic = ( () => {
 			id : mid,
 			element : e,
 			data : mData,
-			name : e.getAttribute( "m-name" ),
+			name : mName,
 
 			event : {
 				destruct : () => {
@@ -84,6 +85,10 @@ const magic = ( () => {
 					e.querySelectorAll( `[magic-type="m"]` ).forEach( me => {
 						me._m.event.destruct();
 					} );
+
+					const as = document.getElementById( "app-style" );
+					const styleElement = as.querySelector( `style[m-style-name=${ mName }]` );
+					if ( styleElement ) as.removeChild( styleElement );
 					e.remove();
 				}
 			},
@@ -116,9 +121,10 @@ const magic = ( () => {
 		return m;
 	}
 
-	const importM = ( () => {
+	const import_m = ( () => {
 		function _importM( mPath, data = "" ) {
-			const mFilePath = node_path.normalize( `./build/m/${ mPath.replace( /[^a-zA-Z]/g, '' ).toLowerCase() }` );
+			const mName = mPath.replace( /[^a-zA-Z]/g, '' ).toLowerCase();
+			const mFilePath = node_path.normalize( `./build/m/${ mName }` );
 			const tempElement = document.createElement( "div" );
 
 			try {
@@ -127,19 +133,31 @@ const magic = ( () => {
 				throw `读取 m 文件失败: ${ e } [path:${ mFilePath }]`;
 			}
 
-			const s = tempElement.querySelector( "script[m-id-script]" );
+			const element = tempElement.firstElementChild;
 
-			const script = document.createElement( "script" );
-			script.setAttribute( "type", "text/javascript" );
-			script.setAttribute( "m-id-script", s.getAttribute( "m-id-script" ) );
-			script.textContent = s.textContent;
+			element.innerHTML += data;
 
-			tempElement.removeChild( s );
+			const scriptElement = tempElement.querySelector( "script[m-id-script]" );
+			if ( scriptElement ) {
+				const script = document.createElement( "script" );
+				script.setAttribute( "type", "text/javascript" );
+				script.setAttribute( "m-id-script", scriptElement.getAttribute( "m-id-script" ) );
+				script.textContent = scriptElement.textContent;
 
-			tempElement.firstElementChild.appendChild( script );
-			tempElement.firstElementChild.innerHTML += data;
+				element.appendChild( script );
 
-			return import_unfold( tempElement.firstElementChild );
+				tempElement.removeChild( scriptElement );
+			}
+
+			const styleElement = element.querySelector( `style[m-style-name=${ mName }]` );
+			if ( styleElement ) {
+				const as = document.getElementById( "app-style" );
+				if ( as.querySelector( `style[m-style-name=${ mName }]` ) === null ) {
+					as.appendChild( styleElement );
+				}
+			}
+
+			return import_unfold( element );
 		}
 
 		function import_unfold( element ) {
@@ -158,12 +176,12 @@ const magic = ( () => {
 
 	return {
 		runUiScript,
-		importM,
+		importM : import_m,
 		parserM,
 		app,
 		init : ( mid ) => {
 			const AppMain = document.getElementById( 'app-main' );
-			AppMain.appendChild( importM( mid ) );
+			AppMain.appendChild( import_m( mid ) );
 		}
 	}
 } )();

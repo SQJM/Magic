@@ -5,7 +5,7 @@ import { printf } from "../global/printf.js";
 import { parse } from "node-html-parser"
 import path from "path";
 import { outError } from "../util/error.js";
-import { __magic_app } from "../../magic-app.mjs";
+import { __magic_app } from "../../magic-app.js";
 import { mId_generate } from "../util/m-id.js";
 
 export const BuildApp = ( magic_config ) => {
@@ -30,6 +30,12 @@ export const BuildApp = ( magic_config ) => {
 
 		const meta = createHTMLElement( "meta", { singleTag : true } );
 		meta.setAttribute( "charset", "UTF-8" );
+
+		{
+			const app_style = createHTMLElement( "div" );
+			app_style.setAttribute( "id", "app-style" );
+			body.appendChild( app_style );
+		}
 
 		{
 			html.appendChild( head );
@@ -75,7 +81,7 @@ export const BuildApp = ( magic_config ) => {
 
 			const importScript_init_app = createHTMLElement( "script" );
 			importScript_init_app.setAttribute( "type", "text/javascript" );
-			importScript_init_app.setAttribute( "src", "./init-magic-app.mjs" );
+			importScript_init_app.setAttribute( "src", "./init-magic-app.js" );
 
 			const importScript_ui_init = createHTMLElement( null, { annotation : true } );
 			importScript_ui_init.setTextContent( "$[==#ui-init#==]$" );
@@ -156,19 +162,24 @@ export const BuildApp = ( magic_config ) => {
 			let templateContent = "", styleContent = "", scriptContent = "";
 
 			try {
-				const template = element.getElementsByTagName( "template" )[ 0 ];
+				const template = element.getElementsByTagName( "template" ).at( 0 );
 				element.removeChild( template );
-				const style = element.getElementsByTagName( "style" )[ 0 ];
-				const script = element.getElementsByTagName( "script" )[ 0 ];
+				const style = element.getElementsByTagName( "style" ).at( 0 );
+				const script = element.getElementsByTagName( "script" ).at( 0 );
 
-				if ( style.hasAttribute( "global" ) )
-					styleContent = `<style>${ style.innerHTML }</style>`;
-				else
-					styleContent = `<style>*[m-name="${ fileName }"] {${ style.innerHTML }}</style>`;
+				if ( style ) {
+					if ( style.hasAttribute( "global" ) )
+						styleContent = `<style m-style-name="${ fileName }" m-id-style="${ mID }">${ style.innerHTML }</style>`;
+					else
+						styleContent = `<style m-style-name="${ fileName }" m-id-style="${ mID }">*[m-name="${ fileName }"] {${ style.innerHTML }}</style>`;
+				}
 
-				scriptContent = `<script type="text/javascript" m-id-script="${ mID }"> magic.runUiScript((m) => { ${ script.innerHTML } }, magic.parserM("${ mID }"));</script>`;
+				if ( script ) {
+					scriptContent =
+						`<script type="text/javascript" m-script-name="${ fileName }" m-id-script="${ mID }"> magic.runUiScript((m) => { ${ script.innerHTML } }, magic.parserM("${ mID }"));</script>`;
+				}
 
-				templateContent = template.innerHTML;
+				templateContent = template.innerHTML || "";
 			} catch ( e ) {
 				throw outError( e )
 			}
@@ -185,7 +196,7 @@ export const BuildApp = ( magic_config ) => {
 	runTask( "build init-app.js", () => {
 		const data =
 			`(()=>{ magic.init("${ build_magic_config[ "main" ] }") })();`;
-		fs.writeFileSync( build_magic_config[ "build_dir" ] + "/init-magic-app.mjs", data );
+		fs.writeFileSync( build_magic_config[ "build_dir" ] + "/init-magic-app.js", data );
 	} );
 
 	const AppDocElementString = `<!DOCTYPE html>${ Dom.html.toString() }`;

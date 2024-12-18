@@ -1,7 +1,7 @@
 import { BuildProject } from "./build-project.js";
 import { BuildApp } from "./build-app.js";
 import { MagicConfigParser } from "../util/magic-config-parser.js";
-import { __magic_app } from "../../magic-app.mjs";
+import { __magic_app } from "../../magic-app.js";
 import { runTask } from "../util/task.js";
 import { outError } from "../util/error.js";
 import { _$ } from "../util/suggest-symbol.js";

@@ -1,4 +1,4 @@
-import { __magic_app } from "../../magic-app.mjs";
+import { __magic_app } from "../../magic-app.js";
 
 export const Macro = ( () => {
 	const macros = [
