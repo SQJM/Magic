@@ -101,8 +101,9 @@ const magic = ( () => {
 			},
 
 			useInterface : ( name ) => m_interface[ name ],
-			setInterface : ( name, callback = () => {} ) => {
+			setInterface : ( name, callback = () => {}, trigger = false, ...args ) => {
 				m_interface[ name ] = callback;
+				trigger && m_interface[ name ]( ...args );
 			},
 			removeInterface : ( name ) => {
 				if ( m_interface[ name ] === undefined ) return false;
