@@ -25,7 +25,7 @@ function index() {
 	} else if ( command === "run" ) {
 		if ( argv.length < 4 ) throw `Insufficient parameter`;
 		runApp();
-	} else if ( command === "build-command" ) {
+	} else if ( command === "build-run" ) {
 		if ( argv.length < 4 ) throw `Insufficient parameter`;
 		compiler_init();
 		runApp();
