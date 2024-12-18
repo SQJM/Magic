@@ -72,11 +72,11 @@ const magic = ( () => {
 		const m_interface = {};
 
 		const m = {
-			useInterface : _ => m_interface[ _ ],
 			id : mid,
 			element : e,
 			data : mData,
-			name : e.getAttribute( "m-name" ),
+			name : e.getAttribute( "m-name" )
+
 			event : {
 				destruct : () => {
 					call_monitor_event( "destruct" );
@@ -87,6 +87,7 @@ const magic = ( () => {
 					e.remove();
 				}
 			},
+
 			monitor : ( eventName, callback = () => {} ) => {
 				monitor_event[ eventName ] = callback;
 			},
@@ -97,6 +98,16 @@ const magic = ( () => {
 				if ( monitor_event[ eventName ] === undefined ) return false;
 				monitor_event[ eventName ] = null;
 				delete monitor_event[ eventName ];
+			},
+
+			useInterface : ( name ) => m_interface[ name ],
+			setInterface : ( name, callback = () => {} ) => {
+				m_interface[ name ] = callback;
+			},
+			removeInterface : ( name ) => {
+				if ( m_interface[ name ] === undefined ) return false;
+				m_interface[ name ] = null;
+				delete m_interface[ name ];
 			}
 		};
 
