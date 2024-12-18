@@ -16,7 +16,7 @@ function GetConfig() {
 				if ( !key && key === undefined ) throw outError( `${ mk } ${ _$( "[*^] [!?]" ) } ${ k }` );
 			}
 			examineFn( build_config[ "main" ], "build", "main" );
-			examineFn( build_config[ "dir" ], "build", "dir" );
+			examineFn( build_config[ "build-dir" ], "build", "build-dir" );
 			examineFn( build_config[ "src" ], "build", "src" );
 		} );
 	} );
