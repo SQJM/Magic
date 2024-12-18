@@ -165,7 +165,7 @@ const magic = ( () => {
 			if ( ims.length === 0 ) return element;
 			ims.forEach( mi => {
 				const name = mi.getAttribute( "name" );
-				element.insertBefore( _importM( name, mi.innerHTML ), mi );
+				element.insertBefore( _importM( name, `<m-data>${ mi.innerHTML }</m-data>` ), mi );
 				mi.remove();
 			} );
 			return element;
