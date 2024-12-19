@@ -101,6 +101,7 @@ export const BuildApp = ( magic_config ) => {
 					if ( obj[ "load" ] === "end" ) body.appendChild( style ); else head.appendChild( style );
 				} else {
 					style.setAttribute( "href", obj[ "src" ] );
+					style.setAttribute( "type", "text/css" );
 					style.setAttribute( "rel", "stylesheet" );
 					head.appendChild( style );
 				}

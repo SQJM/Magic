@@ -75,6 +75,15 @@ const magic = ( () => {
 		const m = {
 			id : mid,
 			element : e,
+			mClass : ( () => {
+				const obj = {};
+				e.querySelectorAll( "[m-class]" ).forEach( ele => {
+					const className = ele.getAttribute( "m-class" );
+					obj[ className ] = ele;
+					ele.classList.add( className );
+				} );
+				return obj;
+			} )(),
 			data : mData,
 			name : mName,
 
