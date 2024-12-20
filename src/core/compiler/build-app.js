@@ -170,14 +170,14 @@ export const BuildApp = ( magic_config ) => {
 
 				if ( style ) {
 					if ( style.hasAttribute( "global" ) )
-						styleContent = `<style m-style-name="${ fileName }" m-id-style="${ mID }">${ style.innerHTML }</style>`;
+						styleContent = `<style m-style-name="${ fileName }">${ style.innerHTML }</style>`;
 					else
-						styleContent = `<style m-style-name="${ fileName }" m-id-style="${ mID }">*[m-name="${ fileName }"] {${ style.innerHTML }}</style>`;
+						styleContent = `<style m-style-name="${ fileName }">*[m-name="${ fileName }"] {${ style.innerHTML } }</style>`;
 				}
 
 				if ( script ) {
 					scriptContent =
-						`<script type="text/javascript" m-script-name="${ fileName }" m-id-script="${ mID }"> magic.runUiScript((m) => { ${ script.innerHTML } }, magic.parserM("${ mID }"));</script>`;
+						`<script type="text/javascript" m-script-name="${ fileName }"> magic.runMScript((m) => { ${ script.innerHTML } magic.runMInitScript(m.ui)}, magic.parserM("${ mID }"));</script>`;
 				}
 
 				templateContent = template.innerHTML || "";
@@ -186,8 +186,12 @@ export const BuildApp = ( magic_config ) => {
 			}
 
 			try {
-				const data = `<div m-id="${ mID }" m-name="${ fileName }">${ templateContent }${ styleContent }</div>${ scriptContent }`;
+				const data = `<div m-id="${ mID }" m-name="${ fileName }">${ templateContent }${ styleContent }${ scriptContent }</div>`;
 				fs.writeFileSync( m, data );
+
+				if ( fileName === build_magic_config[ "main" ] ) {
+					Dom.app_main.setTextContent( data );
+				}
 			} catch ( e ) {
 				throw outError( e )
 			}
@@ -195,8 +199,7 @@ export const BuildApp = ( magic_config ) => {
 	} );
 
 	runTask( "build init-app.js", () => {
-		const data =
-			`(()=>{ magic.init("${ build_magic_config[ "main" ] }") })();`;
+		const data = `magic.init();`;
 		fs.writeFileSync( build_magic_config[ "build_dir" ] + "/init-magic-app.js", data );
 	} );
 

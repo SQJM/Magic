@@ -1,5 +1,10 @@
-magic.app = {
-	runDir : nw.__dirname
-};
-const AppMain = document.getElementById( "app-main" );
-const AppStyle = document.getElementById( "app-style" );
+( () => {
+	magic.app = Object.assign( magic.app, {
+		runDir : nw.__dirname,
+		...nw.App,
+		Window : {
+			...nw.Window
+		},
+		window : nw.Window.get()
+	} );
+} )();

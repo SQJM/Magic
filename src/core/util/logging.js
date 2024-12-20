@@ -45,11 +45,17 @@ export class Logging {
 			}
 		}
 
-		if ( Array.isArray( data ) ) {data.forEach( item => toString( item ) ); } else { toString( data )}
+		if ( Array.isArray( data ) ) {
+			data.forEach( item => toString( item ) );
+		} else {
+			toString( data )
+		}
+		if ( str.trim() === "" ) return false;
 		return this.#head( level ) + str;
 	}
 
 	#write( data, _data ) {
+		if ( data === false ) return;
 		if ( this.oldData === _data ) {
 			this.oldCount++;
 			return;

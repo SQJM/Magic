@@ -26,15 +26,15 @@ const app = {
 			if ( data ) {
 				pkJson = JSON.parse( data );
 			}
-			platform_config[ "config" ] = platform_config[ "main" ];
+
 			const newPk = Object.assign( pkJson, platform_config[ "config" ] );
+			newPk[ "main" ] = platform_config[ "main" ];
 			fs.writeFileSync( pk, JSON.stringify( newPk ) );
 		} catch ( e ) {
 			throw e;
 		}
 
 		const command = `${ platform_config[ "app" ] } ${ __magic_app.project.dir }`;
-		console.log( command )
 		exec( command, ( error, stdout, stderr ) => {
 			if ( error ) {
 				throw error;
@@ -73,7 +73,7 @@ export const runApp = () => {
 
 		runTask( "command init", () => {
 			platform_config[ "build-dir" ] = build_config[ "build-dir" ];
-			platform_config[ "main" ] = `${ build_config[ "main" ] }/index.html`;
+			platform_config[ "main" ] = `${ platform_config[ "build-dir" ] }/index.html`;
 			app[ platform_config[ "name" ] ]( platform_config );
 		} );
 	} );
