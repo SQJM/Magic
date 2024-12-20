@@ -1,6 +1,7 @@
 # Magic
 
 这是一个构建且可以编译 magic 项目的 node.js 包.
+回到最纯粹的 HTML,css,js 编码时刻.
 
 作者: SQJM
 
