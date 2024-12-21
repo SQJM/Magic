@@ -177,7 +177,7 @@ export const BuildApp = ( magic_config ) => {
 
 				if ( script ) {
 					scriptContent =
-						`<script type="text/javascript" m-script-name="${ fileName }"> magic.runMScript((m) => { ${ script.innerHTML } magic.runMInitScript(m.ui)}, magic.parserM("${ mID }"));</script>`;
+						`<script type="text/javascript" m-script-name="${ fileName }"> magic.runMScript(function (m) { ${ script.innerHTML } magic.runMInitScript(m.ui)}, magic.parserM("${ mID }"));</script>`;
 				}
 
 				templateContent = template.innerHTML || "";

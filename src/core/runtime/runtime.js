@@ -1,8 +1,19 @@
 "use strict";
 
 const magic = ( () => {
-	const node_path = require( "path" );
-	const node_fs = require( "fs" );
+	const Navigator = {
+		path : class {
+			static normalize = () => {}
+		},
+
+		file : class {
+			static exists = () => {}
+			static read = () => {}
+			static write = () => {}
+			static app = () => {}
+			static stat = () => {}
+		}
+	}
 
 	const app = {};
 
@@ -12,18 +23,18 @@ const magic = ( () => {
 		oldData = [];
 
 		constructor( logPath, callback = () => { }, maxSize = 524288 ) {
-			this.logPath = node_path.normalize( logPath );
+			this.logPath = Navigator.path.normalize( logPath );
 
 			let bool = true;
 			try {
-				if ( node_fs.existsSync( logPath ) ) {
-					const stats = node_fs.statSync( this.logPath );
+				if ( Navigator.file.exists( logPath ) ) {
+					const stats = Navigator.file.stat( this.logPath );
 					if ( stats.size > maxSize ) {
-						node_fs.writeFileSync( this.logPath, `Magic Application output log\n` );
+						Navigator.file.write( this.logPath, `Magic Application output log\n` );
 					} else bool = false;
 				}
 			} catch ( e ) { }
-			bool && node_fs.writeFileSync( this.logPath, `Magic Application output log\n` );
+			bool && Navigator.file.write( this.logPath, `Magic Application output log\n` );
 
 			if ( typeof callback === Function ) callback();
 		}
@@ -65,11 +76,11 @@ const magic = ( () => {
 				return;
 			}
 			if ( this.oldCount !== 1 ) {
-				node_fs.appendFileSync( this.logPath, this.oldCount + '...^\n' );
+				Navigator.file.app( this.logPath, this.oldCount + '...^\n' );
 			}
 			this.oldCount = 1;
 			this.oldData = _data;
-			node_fs.appendFileSync( this.logPath, data + '\n' );
+			Navigator.file.app( this.logPath, data + '\n' );
 		}
 
 		log( ...args ) {
@@ -92,8 +103,6 @@ const magic = ( () => {
 			this.#write( this.#body( 'INFO', args ), args );
 		}
 	}
-
-	app[ "out" ] = new Logging( "./app.log" );
 
 	function _isElementWithinAnotherM( e, t ) {
 		function _p( e ) {
@@ -155,9 +164,9 @@ const magic = ( () => {
 		return convertNode( xml );
 	}
 
-	function runMScript( task = () => {}, m ) {
+	function runMScript( task = function () {}, m ) {
 		try {
-			task( m );
+			task.bind( function () { } )( m );
 			m.ui.element.querySelector( `script[m-script-name="${ m.ui.name }"]` ).remove();
 		} catch ( e ) {
 			throw e;
@@ -310,7 +319,7 @@ const magic = ( () => {
 			setEvent : ( eventName, callback = () => {} ) => {
 				event[ eventName ] = ( ...args ) => {
 					call_monitor_event( eventName, ...args );
-					callback( ...args );
+					return callback( ...args );
 				};
 			}
 		};
@@ -326,9 +335,9 @@ const magic = ( () => {
 			const tempElement = document.createElement( "div" );
 
 			let mName = mPath.replace( /[^a-zA-Z]/g, '' ).toLowerCase();
-			const mFilePath = node_path.normalize( `./build/m/${ mName }` );
+			const mFilePath = Navigator.path.normalize( `./build/m/${ mName }` );
 			try {
-				tempElement.innerHTML = node_fs.readFileSync( mFilePath ).toString();
+				tempElement.innerHTML = Navigator.file.read( mFilePath );
 			} catch ( e ) {
 				throw `读取 m 文件失败: ${ e } [path:${ mFilePath }]`;
 			}
@@ -382,11 +391,7 @@ const magic = ( () => {
 		Logging,
 		runMScript,
 		importM,
-		asyncImportM : ( mPath, data = "" ) => {
-			return new Promise( ( resolve ) => {
-				resolve( importM( mPath, data ) );
-			} );
-		},
+		asyncImportM : ( mPath, data = "" ) => new Promise( ( resolve ) => { resolve( importM( mPath, data ) ); } ),
 		parserM,
 		runMInitScript : ( ui ) => {
 			if ( !ui[ "data" ] ) return;
@@ -397,8 +402,10 @@ const magic = ( () => {
 			}
 		},
 		app,
+		Navigator,
 		init : () => {
 			const AppMain = document.getElementById( 'app-main' );
+			app[ "out" ] = new magic.Logging( "./app.log" );
 			window[ "Magic-App-Init-Main" ] && window[ "Magic-App-Init-Main" ]( AppMain );
 		}
 	}
