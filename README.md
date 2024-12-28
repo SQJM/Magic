@@ -20,11 +20,11 @@
 
 打开系统环境变量
 
-在 Paths 添加 "...path\\magic\\"
+在 Paths 添加 "path\\magic\\"
 
 #### 新建项目
 
-```cmd
+```node.js command
 magic init
 ```
 
@@ -32,13 +32,13 @@ magic init
 
 #### 构建项目
 
-```cmd
+```node.js command
 magic build /YourProjectDir
 ```
 
 #### 运行项目
 
-```cmd
-magic build /YourProjectDir
+```node.js command
+magic run /YourProjectDir
 ```
 

@@ -1,5 +1,6 @@
 "use strict";
 
+const magic_version = "1.0.0";
 const magic = ( () => {
 	const Navigator = {
 		path : class {
@@ -12,10 +13,41 @@ const magic = ( () => {
 			static write = () => {}
 			static app = () => {}
 			static stat = () => {}
+		},
+		direction : class {
+			static exists = () => {}
+			static create = () => {}
 		}
 	}
 
-	const app = {};
+	const app = {
+		AppStyle : {
+			get element() {
+				return document.getElementById( "app-style" );
+			},
+			has : ( name ) => {
+				return ( app.AppStyle.element.querySelector( `style[m-style-name="${ name }"]` ) !== null );
+			},
+			add : ( ele ) => {
+				if ( !app.AppStyle.has( ele.getAttribute( "m-style-name" ) ) )
+					app.AppStyle.element.appendChild( ele );
+			},
+			remove : ( mName ) => {
+				if ( app.AppMain.getM( mName ).length <= 1 ) {
+					const s = app.AppStyle.element.querySelector( `style[m-style-name="${ mName }"]` );
+					if ( app.AppStyle.element.contains( s ) ) app.AppStyle.element.removeChild( s );
+				}
+			}
+		},
+		AppMain : {
+			getM : ( mName ) => {
+				return app.AppMain.element.querySelectorAll( `div[m-name="${ mName }"][magic-type="m"]` );
+			},
+			get element() {
+				return document.getElementById( "app-main" );
+			}
+		}
+	};
 
 	class Logging {
 		oldCount = 1;
@@ -118,25 +150,28 @@ const magic = ( () => {
 	}
 
 	function xmlToJson( xml ) {
+		function convertToCamelCase( str ) {
+			return str.replace( /-([a-z])/g, ( match, p1 ) => p1.toUpperCase() );
+		}
+
 		function convertNode( node ) {
 			const obj = {};
 			node.childNodes.forEach( child => {
 				if ( child.nodeType === 1 ) {
-					const key = child.tagName.toLowerCase();
-					const type = child.getAttribute( 'type' );
+					const key = convertToCamelCase( child.tagName.toLowerCase() );
 					child.removeAttribute( 'type' );
 
-					if ( key === "init-script" ) {
-						obj[ key ] = child.firstChild.nodeValue;
+					if ( key === "initScript" ) {
+						obj[ "init-script" ] = child.firstChild.nodeValue;
 						return;
 					}
 
-					if ( type === 'html' ) {
+					if ( child.hasAttribute( "html" ) ) {
 						const temp = document.createElement( "div" );
 						temp.innerHTML = child.outerHTML;
 						obj[ key ] = temp.firstElementChild.cloneNode( true );
 						return;
-					} else if ( type === 'xml' ) {
+					} else if ( child.hasAttribute( "xml" ) ) {
 						obj[ key ] = new DOMParser().parseFromString( child.outerHTML, "text/xml" );
 						return;
 					}
@@ -144,11 +179,11 @@ const magic = ( () => {
 					if ( child.childNodes.length === 1 && child.firstChild.nodeType === 3 ) {
 						const value = child.firstChild.nodeValue;
 
-						if ( type === 'number' ) {
+						if ( child.hasAttribute( "number" ) ) {
 							obj[ key ] = parseInt( value );
-						} else if ( type === 'float' ) {
+						} else if ( child.hasAttribute( "float" ) ) {
 							obj[ key ] = parseFloat( value );
-						} else if ( type === 'boolean' ) {
+						} else if ( child.hasAttribute( "boolean" ) ) {
 							obj[ key ] = value === "true";
 						} else {
 							obj[ key ] = value;
@@ -166,8 +201,11 @@ const magic = ( () => {
 
 	function runMScript( task = function () {}, m ) {
 		try {
-			task.bind( function () { } )( m );
-			m.ui.element.querySelector( `script[m-script-name="${ m.ui.name }"]` ).remove();
+			m._this_scope = function () { };
+			m._this_scope.m = m;
+			task.bind( m._this_scope )( m );
+			const script = m.ui.element.querySelector( `script[m-script-name="${ m.ui.name }"]` );
+			script && script.remove();
 		} catch ( e ) {
 			throw e;
 		}
@@ -190,18 +228,26 @@ const magic = ( () => {
 			} );
 		} );
 
-		let mData = null;
-		const data = e.getElementsByTagName( "m-data" ).item( 0 );
-		if ( data ) {
-			mData = xmlToJson( data );
-			data.remove();
+		let mData = {};
+		if ( e[ "_m_data" ] ) {
+			mData = e[ "_m_data" ];
+			delete e[ "_m_data" ];
+		} else {
+			const data = e.getElementsByTagName( "m-data" ).item( 0 );
+			if ( data ) {
+				mData = xmlToJson( data );
+				data.remove();
+			}
 		}
 
 		const monitor_event = {};
-		const call_monitor_event = ( eventName, ...args ) => {
+		const call_monitor_event = ( eventName, ui_event ) => {
 			if ( monitor_event[ eventName ] ) {
-				monitor_event[ eventName ].forEach( fn => { fn( ...args ); } );
+				monitor_event[ eventName ].forEach( fn => {
+					if ( ui_event.getPropagationState() ) fn( ui_event );
+				} );
 			}
+			return ui_event;
 		}
 
 		const m_interface = {};
@@ -209,14 +255,6 @@ const magic = ( () => {
 		const event = {
 			destruct : () => {
 				call_monitor_event( "destruct" );
-
-				e.querySelectorAll( `[magic-type="m"]` ).forEach( me => {
-					me.uiEvent.use( "destruct" );
-				} );
-
-				const as = document.getElementById( "app-style" );
-				const styleElement = as.querySelector( `style[m-style-name=${ mName }]` );
-				if ( styleElement ) as.removeChild( styleElement );
 				e.remove();
 			}
 		};
@@ -248,8 +286,8 @@ const magic = ( () => {
 				e.querySelectorAll( "[m-class]" ).forEach( ele => {
 					if ( !_isElementWithinAnotherM( ele, e ) ) return;
 					const className = ele.getAttribute( "m-class" );
-					if ( className.length <= 0 || !ele[ "ui" ] ) return;
-					obj[ className ] = ele.ui;
+					if ( className.length <= 0 || !ele[ "m" ] ) return;
+					obj[ className ] = ele.m.ui;
 					ele.classList.add( className );
 				} );
 				return new Proxy( obj, {
@@ -262,151 +300,250 @@ const magic = ( () => {
 					}
 				} );
 			} )(),
-			getConfigData : ( meta, callback = o => o ) => callback( Object.assign( meta, mData ) ),
-			data : mData,
+			getConfigData : ( meta, callback = o => o ) => {
+				const r = callback( Object.assign( meta, mData ) );
+				ui.getConfigData = r;
+				return r;
+			},
 			name : mName,
 
-			monitor : ( eventName, callback = () => {}, eventId = "monitor" ) => {
-				if ( !monitor_event[ eventName ] ) monitor_event[ eventName ] = new Map();
-				monitor_event[ eventName ].set( eventId, callback );
-			},
-			getMonitor : ( eventName, eventId ) => {
-				return monitor_event[ eventName ].get( eventId );
-			},
-			getMonitorList : () => {
-				return { ...monitor_event };
-			},
-			removeMonitor : ( eventName, eventId ) => {
-				if ( !monitor_event[ eventName ].has( eventId ) ) return false;
-				monitor_event[ eventName ].delete( eventId );
-				if ( monitor_event[ eventName ].size === 0 ) delete monitor_event[ eventName ];
-				return true;
+			monitor : {
+				add : ( eventName, callback = () => {}, eventId = "monitor" ) => {
+					if ( !monitor_event[ eventName ] ) monitor_event[ eventName ] = new Map();
+					monitor_event[ eventName ].set( eventId, callback );
+				},
+				get : ( eventName, eventId ) => {
+					return monitor_event[ eventName ].get( eventId );
+				},
+				getList : () => {
+					return { ...monitor_event };
+				},
+				remove : ( eventName, eventId ) => {
+					if ( !monitor_event[ eventName ].has( eventId ) ) return false;
+					monitor_event[ eventName ].delete( eventId );
+					if ( monitor_event[ eventName ].size === 0 ) delete monitor_event[ eventName ];
+					return true;
+				}
 			},
 
-			use : ( () => {
-				return new Proxy( m_interface, {
-					set : function () { },
-					get : function ( objs, name ) {
-						return m_interface[ name ];
-					}
-				} );
-			} )(),
-			useInterface : ( () => {
-				return new Proxy( m_interface, {
-					set : function () { },
-					get : function ( objs, name ) {
-						return m_interface[ name ];
-					}
-				} );
-			} )(),
-			setInterface : ( name, callback = () => {}, trigger = false, ...args ) => {
-				m_interface[ name ] = callback;
-				trigger && m_interface[ name ]( ...args );
-			},
-			removeInterface : ( name ) => {
-				if ( m_interface[ name ] === undefined ) return false;
-				m_interface[ name ] = null;
-				delete m_interface[ name ];
-				return true;
+			interface : {
+				use : ( () => {
+					return new Proxy( m_interface, {
+						set : function () { },
+						get : function ( objs, name ) {
+							return m_interface[ name ];
+						}
+					} );
+				} )(),
+				set : ( name, callback = () => {}, trigger = false, ...args ) => {
+					m_interface[ name ] = callback;
+					trigger && m_interface[ name ]( ...args );
+				},
+				remove : ( name ) => {
+					if ( m_interface[ name ] === undefined ) return false;
+					m_interface[ name ] = null;
+					delete m_interface[ name ];
+					return true;
+				}
 			}
 		};
 
-		e[ "ui" ] = ui;
-		e[ "uiEvent" ] = {
-			use : ( eventName, ...args ) => {
-				return event[ eventName ]( ...args );
-			},
-			setEvent : ( eventName, callback = () => {} ) => {
-				event[ eventName ] = ( ...args ) => {
-					call_monitor_event( eventName, ...args );
-					return callback( ...args );
-				};
+		if ( mData && mData[ "init-script" ] ) ui[ "init-script" ] = mData[ "init-script" ];
+
+		e[ "m" ] = {
+			ui : ui,
+			uiEvent : {
+				use : ( eventName, ui_event ) => {
+					return event[ eventName ]( ui_event );
+				},
+				set : ( eventName, callback = ui_event => ui_event ) => {
+					event[ eventName ] = ( ui_event ) => {
+						return call_monitor_event( eventName, callback( ui_event ) );
+					};
+				}
 			}
 		};
 
 		return {
 			ui : ui,
-			uiEvent : e[ "uiEvent" ]
+			uiEvent : e[ "m" ][ "uiEvent" ]
 		};
 	}
 
-	const importM = ( () => {
-		function _import_m( mPath, data = "" ) {
-			const tempElement = document.createElement( "div" );
+	const existsM = ( mPath ) => {
+		let mName = mPath.replace( /[^a-zA-Z0-9]/g, '' ).toLowerCase();
+		const mFilePath = Navigator.path.normalize( `./build/m/${ mName }` );
+		return Navigator.file.exists( mFilePath );
+	}
 
+	const importM = ( () => {
+		const MAdminSystem = new Map();
+		const _10_minute = 10 * 60 * 1000;
+		setInterval( () => {
+			MAdminSystem.forEach( ( obj, mName ) => {
+				const timestamp = new Date().getTime();
+				if ( ( timestamp - obj.timestamp ) > _10_minute ) MAdminSystem.delete( mName );
+			} );
+		}, _10_minute );
+
+		function mId_generate() {
+			const uuidPart = Array.from( { length : 12 }, () =>
+				crypto.getRandomValues( new Uint8Array( 1 ) )[ 0 ].toString( 16 ).slice( -1 )
+			).join( '' );
+
+			const time = new Date().getTime().toString();
+			const timePart = time.substring( 4 );
+
+			return `${ uuidPart }-${ timePart }`;
+		}
+
+		function replaceMID( str, id ) {
+			const lastIndex = str.lastIndexOf( "$[=+M-ID+=]$" );
+			if ( lastIndex !== -1 ) {
+				return str.slice( 0, lastIndex ) + id + str.slice( lastIndex + 12 );
+			}
+			return str;
+		}
+
+		function _import_m( mPath = "null", data = "" ) {
+			let tempElement = document.createElement( "div" );
 			let mName = mPath.replace( /[^a-zA-Z]/g, '' ).toLowerCase();
-			const mFilePath = Navigator.path.normalize( `./build/m/${ mName }` );
-			try {
-				tempElement.innerHTML = Navigator.file.read( mFilePath );
-			} catch ( e ) {
-				throw `读取 m 文件失败: ${ e } [path:${ mFilePath }]`;
+			if ( MAdminSystem.has( mName ) ) {
+				const obj = MAdminSystem.get( mName );
+				tempElement.innerHTML = obj.m;
+				obj.timestamp = new Date().getTime();
+				MAdminSystem.set( mName, obj );
+			} else {
+				const mFilePath = Navigator.path.normalize( `./build/m/${ mName }` );
+				if ( !Navigator.file.exists( mFilePath ) ) throw `m 文件不存在: ${ mFilePath }`;
+				try {
+					const string = Navigator.file.read( mFilePath );
+					tempElement.innerHTML = string;
+					MAdminSystem.set( mName, {
+						m : string,
+						timestamp : new Date().getTime()
+					} );
+				} catch ( e ) {
+					throw `读取 m 文件失败: ${ e } [path:${ mFilePath }]`;
+				}
 			}
 
-			tempElement.firstElementChild.innerHTML += data;
+			const mid = mId_generate();
 
-			const scriptElement = tempElement.querySelector( "script[m-script-name]" );
+			const MElement = tempElement.firstElementChild;
+			if ( typeof data === "object" ) {
+				MElement[ "_m_data" ] = data;
+			} else
+				MElement.innerHTML += data;
+
+			MElement.setAttribute( "m-id", mid );
+
+			const scriptElement = tempElement.querySelector( `script[m-script-name="${ mName }"]` );
 			if ( scriptElement ) {
 				const script = document.createElement( "script" );
 				script.setAttribute( "type", "text/javascript" );
 				script.setAttribute( "m-script-name", scriptElement.getAttribute( "m-script-name" ) );
-				script.textContent = `${ scriptElement.textContent }`;
+				script.textContent = replaceMID( scriptElement.textContent, mid );
 
-				tempElement.firstElementChild.appendChild( script );
-				tempElement.firstElementChild.removeChild( scriptElement );
+				MElement.appendChild( script );
+				MElement.removeChild( scriptElement );
 			}
 
-			const styleElement = tempElement.querySelector( `style[m-style-name=${ mName }]` );
+			const styleElement = tempElement.querySelector( `style[m-style-name="${ mName }"]` );
 			if ( styleElement ) {
-				const as = document.getElementById( "app-style" );
-				if ( as.querySelector( `style[m-style-name=${ mName }]` ) === null ) {
-					as.appendChild( styleElement );
-				}
+				if ( app.AppStyle.has( mName ) ) styleElement.remove();
+				app.AppStyle.add( styleElement );
 			}
 
-			return _import_unfold( tempElement.firstElementChild );
+			return _import_unfold( MElement );
 		}
 
-		function _import_unfold( tempElement ) {
-			const ims = tempElement.querySelectorAll( "m-import" );
+		function _import_unfold( MElement ) {
+			const ims = MElement.querySelectorAll( "m-import" );
 			if ( ims.length === 0 ) {
-				return tempElement;
+				return MElement;
 			}
 			ims.forEach( mi => {
-				const name = mi.getAttribute( "name" );
+				const name = mi.getAttribute( "name" ) || "null";
 				const m = _import_m( name, `<m-data>${ mi.innerHTML }</m-data>` );
 				mi.className.split( " " ).forEach( cn => {
 					if ( cn.trim().length > 0 ) m.classList.add( cn );
 				} );
-				if ( mi.hasAttribute( "m-class" ) ) m.setAttribute( "m-class", mi.getAttribute( "m-class" ) );
+				mi.getAttributeNames().forEach( attr => {
+					if ( attr === "name" ) return;
+					if ( mi.getAttribute( attr ) ) m.setAttribute( attr, mi.getAttribute( attr ) );
+				} );
 				mi.parentNode.insertBefore( m, mi );
 				mi.remove();
 			} );
-			return tempElement;
+			return MElement;
 		}
 
 		return _import_m;
 	} )();
 
+	{
+
+		const originalRemove = Element.prototype.remove;
+		Element.prototype.remove = function () {
+			this.querySelectorAll( `[magic-type="m"]` ).forEach( me => {
+				me.m.uiEvent.use( "destruct" );
+			} );
+
+			if ( this[ "m" ] ) {
+				const m = this.m;
+				const mName = m.ui.name;
+				app.AppStyle.remove( mName );
+				m._this_scope = undefined;
+				delete m._this_scope;
+			}
+
+			originalRemove.call( this );
+		};
+	}
+
 	return {
+		createUIEvent : ( o, m ) => {
+			{
+				const propagationStateSymbol = Symbol( 'PropagationState' );
+				Object.defineProperty( o, propagationStateSymbol, {
+					value : true,
+					writable : true,
+					enumerable : false,
+					configurable : true
+				} );
+
+				o.stopPropagation = () => {
+					o[ propagationStateSymbol ] = false;
+				};
+
+				o.getPropagationState = () => {
+					return o[ propagationStateSymbol ];
+				};
+			}
+
+			return o;
+		},
 		Logging,
 		runMScript,
+		existsM,
 		importM,
 		asyncImportM : ( mPath, data = "" ) => new Promise( ( resolve ) => { resolve( importM( mPath, data ) ); } ),
 		parserM,
 		runMInitScript : ( ui ) => {
-			if ( !ui[ "data" ] ) return;
-			const script = ui.data[ "init-script" ];
-			if ( script ) {
-				new Function( "ui", script )( ui );
-				delete ui[ "data" ][ "init-script" ];
+			if ( ui[ "init-script" ] ) {
+				const script = ui[ "init-script" ];
+				if ( script ) {
+					new Function( "ui", script )( ui );
+				}
+				delete ui[ "init-script" ];
 			}
 		},
 		app,
 		Navigator,
 		init : () => {
-			const AppMain = document.getElementById( 'app-main' );
 			app[ "out" ] = new magic.Logging( "./app.log" );
-			window[ "Magic-App-Init-Main" ] && window[ "Magic-App-Init-Main" ]( AppMain );
+			window[ "Magic-App-Init-Main" ] && window[ "Magic-App-Init-Main" ]( app.AppMain );
 		}
 	}
 } )();
