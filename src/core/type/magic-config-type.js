@@ -78,6 +78,11 @@ export const Build_MagicConfig_Type = ( () => {
 		"main" : ( t ) => _typeof( t, Var.string ),
 		"excludeDir" : ( t ) => array_ItemType_string( t ),
 		"exclude" : ( t ) => array_ItemType_string( t ),
-		"build-dir" : ( t ) => _typeof( t, Var.string )
+		"build-dir" : ( t ) => _typeof( t, Var.string ),
+		"min-code" : {
+			"js" : ( t ) => _typeof( t, Var.boolean ),
+			"css" : ( t ) => _typeof( t, Var.boolean ),
+			"html" : ( t ) => _typeof( t, Var.boolean )
+		}
 	}
 } )();

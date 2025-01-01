@@ -76,10 +76,19 @@ export const File = ( () => {
 		} );
 	}
 
+	function getFullExtension( filePath ) {
+		const lastDotIndex = filePath.indexOf( '.' );
+		if ( lastDotIndex === -1 || lastDotIndex === filePath.length - 1 ) {
+			return '';
+		}
+		return filePath.substring( lastDotIndex );
+	}
+
 	return {
 		isFilterFile,
 		createFileWithDirectories,
 		copyFileWithDirectories,
-		readFileLine
+		readFileLine,
+		getFullExtension
 	};
 } )();

@@ -1,12 +1,9 @@
 ( () => {
 	magic.app = Object.assign( magic.app, {
 		runDir : nw.__dirname,
-		...nw.App,
-		Window : {
-			...nw.Window
-		},
+		Window : nw.Window,
 		window : nw.Window.get(),
-		out : new magic.Logging( "./app.log" )
+		...nw.App
 	} );
 
 	const node_path = require( "path" );

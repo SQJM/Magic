@@ -114,8 +114,7 @@ export const BuildProject = ( magic_config ) => {
 			files.forEach( ( filePath ) => {
 				const target = filePath.substring( projectDirPath.length );
 				const targetPath = path.normalize( `${ build_dir }${ target }` );
-				const ext = path.extname( target );
-
+				const ext = File.getFullExtension( path.basename( target ) );
 				if ( !file_to_build[ ext ] ) file_to_build[ ext ] = [];
 
 				const data = fs.readFileSync( filePath ).toString( "utf8" );

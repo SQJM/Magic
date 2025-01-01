@@ -29,11 +29,10 @@ const magic = ( () => {
 				return ( app.AppStyle.element.querySelector( `style[m-style-name="${ name }"]` ) !== null );
 			},
 			add : ( ele ) => {
-				if ( !app.AppStyle.has( ele.getAttribute( "m-style-name" ) ) )
-					app.AppStyle.element.appendChild( ele );
+				app.AppStyle.element.appendChild( ele );
 			},
 			remove : ( mName ) => {
-				if ( app.AppMain.getM( mName ).length <= 1 ) {
+				if ( app.AppMain.getM( mName ).length <= 0 ) {
 					const s = app.AppStyle.element.querySelector( `style[m-style-name="${ mName }"]` );
 					if ( app.AppStyle.element.contains( s ) ) app.AppStyle.element.removeChild( s );
 				}
@@ -138,9 +137,15 @@ const magic = ( () => {
 
 	function _isElementWithinAnotherM( e, t ) {
 		function _p( e ) {
-			if ( e.getAttribute( "id" ) === "app-main" ) return false;
 			const p = e.parentNode;
-			if ( p.getAttribute( "magic-type" ) === "m" || e.getAttribute( "magic-type" ) === "m" ) {
+			if (
+				e.getAttribute( "id" ) === "app-main"
+				||
+				!t.contains( e )
+				||
+				( p.getAttribute( "magic-type" ) === "m" && p !== t )
+			) return false;
+			if ( p.m && p.getAttribute( "magic-type" ) === "m" || e.m && e.getAttribute( "magic-type" ) === "m" ) {
 				if ( p === t || e === t ) return true;
 				else if ( p !== t || e !== t ) return _p( p );
 			} else return _p( p );
@@ -167,9 +172,9 @@ const magic = ( () => {
 					}
 
 					if ( child.hasAttribute( "html" ) ) {
-						const temp = document.createElement( "div" );
-						temp.innerHTML = child.outerHTML;
-						obj[ key ] = temp.firstElementChild.cloneNode( true );
+						const fragment = document.createDocumentFragment();
+						fragment.append( ...child.childNodes );
+						obj[ key ] = fragment;
 						return;
 					} else if ( child.hasAttribute( "xml" ) ) {
 						obj[ key ] = new DOMParser().parseFromString( child.outerHTML, "text/xml" );
@@ -204,7 +209,7 @@ const magic = ( () => {
 			m._this_scope = function () { };
 			m._this_scope.m = m;
 			task.bind( m._this_scope )( m );
-			const script = m.ui.element.querySelector( `script[m-script-name="${ m.ui.name }"]` );
+			const script = m.element.querySelector( `script[m-script-name="${ m.name }"]` );
 			script && script.remove();
 		} catch ( e ) {
 			throw e;
@@ -259,50 +264,46 @@ const magic = ( () => {
 			}
 		};
 
-		const ui = {
+		const m_class = {};
+		const fn_refresh_m_class = () => {
+			e.querySelectorAll( "[m-class]" ).forEach( ele => {
+				if ( !_isElementWithinAnotherM( ele, e ) ) return;
+				const className = ele.getAttribute( "m-class" );
+				if ( className.length <= 0 ) return;
+				m_class[ className ] = {
+					element : ele,
+					m : ele.m
+				};
+				ele.parentMNode = e;
+				ele.classList.add( className );
+			} );
+		};
+		fn_refresh_m_class();
+		const get_m_class = ( name ) => {
+			if ( !m_class.hasOwnProperty( name ) ) fn_refresh_m_class();
+			if ( !document.contains( m_class[ name ].element ) ) {
+				delete m_class[ name ];
+				return {};
+			}
+			return m_class[ name ];
+		}
+
+		const m = {
 			id : mid,
 			element : e,
-			mClass : ( () => {
-				const obj = {};
-				e.querySelectorAll( "[m-class]" ).forEach( ele => {
-					if ( !_isElementWithinAnotherM( ele, e ) ) return;
-					const className = ele.getAttribute( "m-class" );
-					if ( className.length <= 0 ) return;
-					obj[ className ] = ele;
-					ele.classList.add( className );
-				} );
-				return new Proxy( obj, {
-					get : function ( prop, n ) {
-						if ( !document.contains( obj[ n ] ) ) {
-							delete obj[ n ];
-							return undefined;
-						}
-						return obj[ n ];
-					}
-				} );
-			} )(),
-			mClassUi : ( () => {
-				const obj = {};
-				e.querySelectorAll( "[m-class]" ).forEach( ele => {
-					if ( !_isElementWithinAnotherM( ele, e ) ) return;
-					const className = ele.getAttribute( "m-class" );
-					if ( className.length <= 0 || !ele[ "m" ] ) return;
-					obj[ className ] = ele.m.ui;
-					ele.classList.add( className );
-				} );
-				return new Proxy( obj, {
-					get : function ( prop, n ) {
-						if ( !document.contains( obj[ n ].element ) ) {
-							delete obj[ n ];
-							return undefined;
-						}
-						return obj[ n ];
-					}
-				} );
-			} )(),
+			mClass : new Proxy( {}, {
+				get : function ( v, n ) {
+					return get_m_class( n ).element;
+				}
+			} ),
+			mClassM : new Proxy( {}, {
+				get : function ( v, n ) {
+					return get_m_class( n ).m;
+				}
+			} ),
 			getConfigData : ( meta, callback = o => o ) => {
 				const r = callback( Object.assign( meta, mData ) );
-				ui.getConfigData = r;
+				m.getConfigData = r;
 				return r;
 			},
 			name : mName,
@@ -344,15 +345,25 @@ const magic = ( () => {
 					m_interface[ name ] = null;
 					delete m_interface[ name ];
 					return true;
+				},
+				export : ( u, list ) => {
+					if ( Array.isArray( list ) ) {
+						list = list.reduce( ( obj, k ) => {
+							obj[ k ] = () => {};
+							return obj;
+						}, {} );
+					}
+					for ( const key in list ) {
+						const value = list[ key ];
+						u.interface.set( key, ( ...args ) => {
+							value( ...args );
+							m.interface.use[ key ]( ...args );
+						} );
+					}
 				}
-			}
-		};
+			},
 
-		if ( mData && mData[ "init-script" ] ) ui[ "init-script" ] = mData[ "init-script" ];
-
-		e[ "m" ] = {
-			ui : ui,
-			uiEvent : {
+			event : {
 				use : ( eventName, ui_event ) => {
 					return event[ eventName ]( ui_event );
 				},
@@ -364,10 +375,10 @@ const magic = ( () => {
 			}
 		};
 
-		return {
-			ui : ui,
-			uiEvent : e[ "m" ][ "uiEvent" ]
-		};
+		if ( mData && mData[ "init-script" ] ) m[ "init-script" ] = mData[ "init-script" ];
+
+		e[ "m" ] = m;
+		return m;
 	}
 
 	const existsM = ( mPath ) => {
@@ -451,8 +462,10 @@ const magic = ( () => {
 
 			const styleElement = tempElement.querySelector( `style[m-style-name="${ mName }"]` );
 			if ( styleElement ) {
-				if ( app.AppStyle.has( mName ) ) styleElement.remove();
-				app.AppStyle.add( styleElement );
+				if ( app.AppStyle.has( mName ) ) {
+					styleElement.remove();
+				} else
+					app.AppStyle.add( styleElement );
 			}
 
 			return _import_unfold( MElement );
@@ -487,12 +500,12 @@ const magic = ( () => {
 		const originalRemove = Element.prototype.remove;
 		Element.prototype.remove = function () {
 			this.querySelectorAll( `[magic-type="m"]` ).forEach( me => {
-				me.m.uiEvent.use( "destruct" );
+				me.m.event.use( "destruct" );
 			} );
 
 			if ( this[ "m" ] ) {
 				const m = this.m;
-				const mName = m.ui.name;
+				const mName = m.name;
 				app.AppStyle.remove( mName );
 				m._this_scope = undefined;
 				delete m._this_scope;
@@ -530,13 +543,13 @@ const magic = ( () => {
 		importM,
 		asyncImportM : ( mPath, data = "" ) => new Promise( ( resolve ) => { resolve( importM( mPath, data ) ); } ),
 		parserM,
-		runMInitScript : ( ui ) => {
-			if ( ui[ "init-script" ] ) {
-				const script = ui[ "init-script" ];
+		runMInitScript : ( m ) => {
+			if ( m[ "init-script" ] ) {
+				const script = m[ "init-script" ];
 				if ( script ) {
-					new Function( "ui", script )( ui );
+					new Function( "m", script )( m );
 				}
-				delete ui[ "init-script" ];
+				delete m[ "init-script" ];
 			}
 		},
 		app,
