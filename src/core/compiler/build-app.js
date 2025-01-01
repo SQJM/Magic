@@ -9,6 +9,8 @@ import { __magic_app } from "../../magic-app.js";
 import { minify_sync } from "terser";
 import htmlMinify from 'html-minifier';
 import { compressCSS } from "../util/compress-css.js";
+import { deepMerge } from "../util/deep-merge.js";
+import { getObjectString } from "../util/get-object-string.js";
 
 export const BuildApp = ( magic_config ) => {
 	const {
@@ -73,11 +75,17 @@ export const BuildApp = ( magic_config ) => {
 					[ "src", "./magic/init.js" ]
 				]
 			} );
+			const importScript_previa = createHTMLElement( "script", {
+				attribute : [
+					[ "type", "text/javascript" ],
+					[ "src", "./previa.js" ]
+				]
+			} );
 
 			const importScript_ui = createHTMLElement( null, { annotation : true } );
 			importScript_ui.setTextContent( "$[==#ui#==]$" );
 
-			head.appendChild( importScript_runtime_runtime, importScript_platform, importScript_ui );
+			head.appendChild( importScript_runtime_runtime, importScript_platform, importScript_ui, importScript_previa );
 
 			const importScript_init_app = createHTMLElement( "script" );
 			importScript_init_app.setAttribute( "type", "text/javascript" );
@@ -152,6 +160,8 @@ export const BuildApp = ( magic_config ) => {
 		fs.copyFileSync( __magic_app.runDir + "/core/runtime/style.css", libPath + "/style.css" );
 	} );
 
+	let previa_root = {};
+
 	runTask( "build m", () => {
 		const m_files = build_magic_config[ "file_to_build" ][ ".m" ];
 		if ( Array.isArray( m_files ) ) m_files.forEach( m => {
@@ -167,6 +177,54 @@ export const BuildApp = ( magic_config ) => {
 			let mid_macro = "$[=+M-ID+=]$";
 			if ( fileName === build_magic_config[ "main" ] ) {
 				mid_macro = "magic-app-main";
+			}
+
+			const previa = element.querySelector( "script[previa]" );
+			let previa_data = "";
+			if ( previa ) {
+				const previa_path = previa.getAttribute( "previa" );
+				try {
+					const classString = `class c{ constructor(){} ${ previa.innerHTML } };`;
+					let exportVar = [];
+
+					( function () {
+						const c = eval( `( () => {
+							${ classString }
+							return c;
+						} )();` );
+						const n = new c();
+						exportVar = Object.getOwnPropertyNames( n )
+
+						const o = {};
+						exportVar.forEach( k => { o[ k ] = n[ k ]; } );
+
+						const parts = previa_path.split( '.' );
+						let root = {};
+						parts.reduce( ( acc, part ) => {
+							acc[ part ] = part === parts[ parts.length - 1 ] ? null : {};
+							return acc[ part ];
+						}, root );
+
+						function traverseObject( obj ) {
+							for ( let key in obj ) {
+								if ( obj[ key ] !== null ) {
+									traverseObject( obj[ key ] );
+								} else {
+									obj[ key ] = getObjectString( o );
+								}
+							}
+						}
+
+						traverseObject( root );
+
+						previa_root = deepMerge( Object.assign( {}, previa_root ), root );
+					} )();
+					previa.remove();
+
+					previa_data = `const { ${ exportVar.join( "," ) } } = window["previa"].${ previa_path };`;
+				} catch ( e ) {
+					throw outError( `${ e } [previa:${ previa_path }}]` );
+				}
 			}
 
 			try {
@@ -190,7 +248,7 @@ export const BuildApp = ( magic_config ) => {
 
 				const script_start = element.querySelector( "script[start]" );
 				if ( script_start ) {
-					let result = script_start.innerHTML;
+					let result = previa_data + script_start.innerHTML;
 					{
 						const ia = script_start.hasAttribute( "import-all" );
 
@@ -233,7 +291,7 @@ export const BuildApp = ( magic_config ) => {
 						try {
 							return fs.readFileSync( path.normalize( src ) ).toString();
 						} catch ( e ) {
-							throw `${ e } [src:${ src }]`;
+							throw outError( `${ e } [src:${ src }]` );
 						}
 					} );
 
@@ -289,6 +347,29 @@ export const BuildApp = ( magic_config ) => {
 		} );
 	} );
 
+	runTask( "create previa", () => {
+		function traverseObject( obj ) {
+			let objString = '';
+			const keys = Object.keys( obj );
+			for ( let i = 0; i < keys.length; i++ ) {
+				const key = keys[ i ];
+				const value = obj[ key ];
+				if ( typeof value === 'object' && value !== null ) {
+					objString += `${ key }: ${ traverseObject( value ) }`;
+				} else {
+					objString += `${ key }: ${ value }`;
+				}
+				if ( i < keys.length - 1 ) {
+					objString += ', ';
+				}
+			}
+			if ( objString ) return `{${ objString }}`;
+			return objString;
+		}
+
+		fs.writeFileSync( build_magic_config[ "build_dir" ] + "/previa.js", `window[ "previa" ] = ${ traverseObject( previa_root ) };` );
+	} );
+
 	runTask( "min css", () => {
 		const files = build_magic_config[ "file_to_build" ][ ".css" ];
 		if ( Array.isArray( files ) ) files.forEach( path => {
@@ -307,6 +388,7 @@ export const BuildApp = ( magic_config ) => {
 
 	runTask( "min js", () => {
 		const files = build_magic_config[ "file_to_build" ][ ".js" ];
+		files.push( build_magic_config[ "build_dir" ] + "/previa.js" );
 		if ( Array.isArray( files ) ) files.forEach( path => {
 			const fileContent = fs.readFileSync( path ).toString();
 			try {
