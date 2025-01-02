@@ -44,6 +44,9 @@ const magic = ( () => {
 			},
 			get element() {
 				return document.getElementById( "app-main" );
+			},
+			get MagicMElementTempDeposit() {
+				return document.getElementById( "magic-m-element-temp-deposit" );
 			}
 		}
 	};
@@ -281,7 +284,7 @@ const magic = ( () => {
 		fn_refresh_m_class();
 		const get_m_class = ( name ) => {
 			if ( !m_class.hasOwnProperty( name ) ) fn_refresh_m_class();
-			if ( !document.contains( m_class[ name ].element ) ) {
+			if ( !m_class[ name ] || !document.contains( m_class[ name ].element ) ) {
 				delete m_class[ name ];
 				return {};
 			}
@@ -477,13 +480,13 @@ const magic = ( () => {
 				return MElement;
 			}
 			ims.forEach( mi => {
-				const name = mi.getAttribute( "name" ) || "null";
-				const m = _import_m( name, `<m-data>${ mi.innerHTML }</m-data>` );
+				const src = mi.getAttribute( "src" ) || "null";
+				const m = _import_m( src, `<m-data>${ mi.innerHTML }</m-data>` );
 				mi.className.split( " " ).forEach( cn => {
 					if ( cn.trim().length > 0 ) m.classList.add( cn );
 				} );
 				mi.getAttributeNames().forEach( attr => {
-					if ( attr === "name" ) return;
+					if ( attr === "src" ) return;
 					if ( mi.getAttribute( attr ) ) m.setAttribute( attr, mi.getAttribute( attr ) );
 				} );
 				mi.parentNode.insertBefore( m, mi );
@@ -540,7 +543,12 @@ const magic = ( () => {
 		Logging,
 		runMScript,
 		existsM,
-		importM,
+		importM : ( mPath, data = "" ) => {
+			const m = importM( mPath, data );
+			magic.app.AppMain.MagicMElementTempDeposit.appendChild( m );
+			m[ "init" ] = ( f ) => { f( m ); };
+			return m;
+		},
 		asyncImportM : ( mPath, data = "" ) => new Promise( ( resolve ) => { resolve( importM( mPath, data ) ); } ),
 		parserM,
 		runMInitScript : ( m ) => {
