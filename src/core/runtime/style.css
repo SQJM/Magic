@@ -1,0 +1,30 @@
+
+html {
+    width: 100dvw;
+    height: 100dvh;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+
+    overflow: hidden;
+
+    width: 100%;
+    height: 100%;
+}
+
+#app-style {
+    display: none;
+}
+
+#app-main {
+    width: 100%;
+    height: 100%;
+
+    m-data,
+    m-import {
+        display: none;
+    }
+}
+

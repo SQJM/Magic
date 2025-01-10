@@ -1,0 +1,27 @@
+{
+  "name": "@sqjm/magic",
+  "version": "1.0.0",
+  "description": "hi, this is Magic(神奇)",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "magic",
+    "神奇",
+    "SQJM"
+  ],
+  "author": "SQJM (https://github.com/SQJM)",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "@types/node": "^22.10.1",
+    "commander": "^13.0.0",
+    "fs": "^0.0.1-security",
+    "html-minifier": "^4.0.0",
+    "node-html-parser": "^6.1.13",
+    "process": "^0.11.10",
+    "terser": "^5.37.0"
+  }
+}
